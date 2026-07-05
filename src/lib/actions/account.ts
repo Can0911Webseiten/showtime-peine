@@ -2,8 +2,10 @@
 
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { verifySession, requireOwner } from "@/lib/dal";
+import { deleteSession } from "@/lib/session";
 import { ChangePasswordSchema, type ChangePasswordState } from "@/lib/validations";
 
 export async function changeOwnPassword(
@@ -69,4 +71,21 @@ export async function resetUserPassword(userId: string): Promise<
   revalidatePath("/owner/mitarbeiter");
   revalidatePath("/owner/kunden");
   return { password: newPassword };
+}
+
+export async function deleteOwnAccount() {
+  const session = await verifySession();
+
+  const user = await db.user.findUnique({ where: { id: session.userId } });
+  if (!user || user.role !== "CUSTOMER") {
+    throw new Error("Nicht berechtigt.");
+  }
+
+  // Cascades to delete this customer's appointments too (see schema.prisma).
+  await db.user.delete({ where: { id: session.userId } });
+
+  await deleteSession();
+  revalidatePath("/owner");
+  revalidatePath("/owner/kunden");
+  redirect("/");
 }

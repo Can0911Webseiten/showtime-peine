@@ -49,10 +49,10 @@ model Appointment {
   cancelledBy   String?  // "CUSTOMER" | "OWNER"
   seriesId      String?  // gemeinsame Kennung fuer woechentlich wiederkehrende Termine
 
-  customer      User     @relation("CustomerAppointments", fields: [customerId], references: [id])
+  customer      User     @relation("CustomerAppointments", fields: [customerId], references: [id], onDelete: Cascade)
   customerId    String
 
-  staff         User?    @relation("StaffAppointments", fields: [staffId], references: [id])
+  staff         User?    @relation("StaffAppointments", fields: [staffId], references: [id], onDelete: SetNull)
   staffId       String?
 
   service       Service  @relation(fields: [serviceId], references: [id])

@@ -10,6 +10,7 @@ import { formatDateLong, formatDuration, formatPrice } from "@/lib/format";
 import { CancelAppointmentButton } from "@/components/konto/cancel-appointment-button";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { ChangePasswordForm } from "@/components/auth/change-password-form";
+import { DeleteAccountButton } from "@/components/konto/delete-account-button";
 
 export default async function KontoPage({
   searchParams,
@@ -157,6 +158,21 @@ export default async function KontoPage({
         <Card className="mt-4">
           <CardContent className="p-5">
             <ChangePasswordForm />
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="mt-10">
+        <h2 className="font-heading text-sm tracking-wide text-muted-foreground">
+          KONTO LÖSCHEN
+        </h2>
+        <Card className="mt-4 border-destructive/30">
+          <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
+            <p className="max-w-md text-sm text-muted-foreground">
+              Löscht dein Konto und alle deine Termine unwiderruflich aus
+              unserer Datenbank.
+            </p>
+            <DeleteAccountButton upcomingCount={upcoming.length} />
           </CardContent>
         </Card>
       </section>
