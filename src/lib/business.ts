@@ -31,5 +31,5 @@ export const OPENING_HOURS_LABELS = [
 ];
 
 export const SLOT_INTERVAL_MIN = 30;
-export const BOOKING_WINDOW_DAYS = 21;
+export const BOOKING_WINDOW_DAYS = 90;
 export const MIN_LEAD_TIME_MIN = 60;
