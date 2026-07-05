@@ -1,9 +1,11 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { signup } from "@/lib/actions/auth";
 import type { SignupState } from "@/lib/validations";
@@ -56,6 +58,16 @@ export function SignupForm({
             ))}
           </ul>
         )}
+      </div>
+      <div className="flex items-start gap-2">
+        <Checkbox id="acceptPrivacy" name="acceptPrivacy" required className="mt-0.5" />
+        <Label htmlFor="acceptPrivacy" className="text-xs font-normal text-muted-foreground">
+          Ich habe die{" "}
+          <Link href="/datenschutz" target="_blank" className="text-primary hover:underline">
+            Datenschutzerklärung
+          </Link>{" "}
+          gelesen und akzeptiere sie.
+        </Label>
       </div>
       {state?.message && (
         <Alert variant="destructive">

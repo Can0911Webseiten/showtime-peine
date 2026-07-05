@@ -82,6 +82,10 @@ export function SiteFooter() {
           © {new Date().getFullYear()} Showtime Friseur {BUSINESS.city} ·{" "}
           <Link href="/impressum" className="hover:text-foreground">
             Impressum
+          </Link>{" "}
+          ·{" "}
+          <Link href="/datenschutz" className="hover:text-foreground">
+            Datenschutz
           </Link>
         </p>
       </div>

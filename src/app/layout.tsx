@@ -3,6 +3,7 @@ import { Oswald, Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { CookieNotice } from "@/components/cookie-notice";
 import "./globals.css";
 
 const heading = Oswald({
@@ -42,6 +43,7 @@ export default function RootLayout({
         <SiteHeader />
         <div className="flex flex-1 flex-col">{children}</div>
         <SiteFooter />
+        <CookieNotice />
         <Toaster richColors position="top-center" />
       </body>
     </html>
