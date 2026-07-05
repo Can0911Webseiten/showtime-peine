@@ -1,0 +1,65 @@
+// Prisma schema for Friseur Showtime (Peine)
+// Postgres (Neon) — used for both local development and production.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String?  @unique // Pflicht fuer Kunden/Owner; Mitarbeiter loggen sich per username ein
+  username     String?  @unique // nur fuer Mitarbeiter-Logins (kein E-Mail noetig)
+  phone        String?
+  passwordHash String
+  role         String   @default("CUSTOMER") // "CUSTOMER" | "OWNER" | "STAFF"
+  active       Boolean  @default(true) // fuer Mitarbeiter: deaktivieren statt loeschen
+  createdAt    DateTime @default(now())
+
+  appointments       Appointment[] @relation("CustomerAppointments")
+  staffAppointments  Appointment[] @relation("StaffAppointments")
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  durationMin Int
+  priceCents  Int
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+
+  appointments Appointment[]
+}
+
+model Appointment {
+  id            String   @id @default(cuid())
+  startsAt      DateTime
+  endsAt        DateTime
+  status        String   @default("BOOKED") // "BOOKED" | "CANCELLED"
+  notes         String?
+  phone         String   // Kontakt-Rufnummer fuer diesen Termin (Pflichtangabe bei Buchung)
+  createdAt     DateTime @default(now())
+  cancelledAt   DateTime?
+  cancelledBy   String?  // "CUSTOMER" | "OWNER"
+  seriesId      String?  // gemeinsame Kennung fuer woechentlich wiederkehrende Termine
+
+  customer      User     @relation("CustomerAppointments", fields: [customerId], references: [id])
+  customerId    String
+
+  staff         User?    @relation("StaffAppointments", fields: [staffId], references: [id])
+  staffId       String?
+
+  service       Service  @relation(fields: [serviceId], references: [id])
+  serviceId     String
+
+  @@index([startsAt])
+  @@index([customerId])
+  @@index([staffId])
+  @@index([seriesId])
+}
