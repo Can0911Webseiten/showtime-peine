@@ -8,20 +8,35 @@ import { getAvailableSlots, isWithinOpeningHours, type SlotInfo } from "@/lib/av
 import { BookingSchema } from "@/lib/validations";
 
 /**
- * dateStr must be "YYYY-MM-DD" and is interpreted in the server's local timezone.
- *
- * Booking without a staff preference is treated as "any chair" and checked
- * against every booking that day (shop-wide single pool), since we don't run
- * an assignment algorithm. A booking for a SPECIFIC staff member is checked
- * against that staff member's own bookings *plus* any unassigned ("keine
- * Präferenz") bookings, because an unassigned booking might end up being done
- * by that very person — without this, a specific-staff booking could
- * silently double-book against a walk-in that has no staffId yet.
+ * Legacy/unassigned bookings (staffId null) can't be tied to a single staff
+ * member's calendar, so they conservatively block *every* staff member for
+ * that time. New "keine Präferenz" bookings no longer create unassigned rows
+ * (see findFreeStaffId below) — they get auto-assigned to a free staff member
+ * at booking time — but old rows or a shop with zero staff still rely on this.
  */
 function staffAvailabilityFilter(staffId: string | undefined) {
   return staffId ? { OR: [{ staffId }, { staffId: null }] } : {};
 }
 
+async function getActiveStaffIds() {
+  const staff = await db.user.findMany({
+    where: { role: "STAFF", active: true },
+    select: { id: true },
+  });
+  return staff.map((s) => s.id);
+}
+
+/**
+ * dateStr must be "YYYY-MM-DD" and is interpreted in the server's local timezone.
+ *
+ * - Specific staff chosen: availability is that staff's own bookings plus any
+ *   unassigned legacy bookings.
+ * - No preference, staff exist: a slot is available if *at least one* active
+ *   staff member is free then (union across staff), so one busy hairdresser
+ *   doesn't block the whole shop.
+ * - No preference, no staff configured at all: falls back to a single
+ *   shop-wide pool (original one-person-shop behavior).
+ */
 export async function getAvailableSlotsAction(
   serviceId: string,
   dateStr: string,
@@ -38,16 +53,40 @@ export async function getAvailableSlotsAction(
   const dayEnd = new Date(date);
   dayEnd.setHours(23, 59, 59, 999);
 
-  const bookings = await db.appointment.findMany({
-    where: {
-      status: "BOOKED",
-      startsAt: { gte: dayStart, lte: dayEnd },
-      ...staffAvailabilityFilter(staffId),
-    },
-    select: { startsAt: true, endsAt: true },
+  if (staffId) {
+    const bookings = await db.appointment.findMany({
+      where: {
+        status: "BOOKED",
+        startsAt: { gte: dayStart, lte: dayEnd },
+        ...staffAvailabilityFilter(staffId),
+      },
+      select: { startsAt: true, endsAt: true },
+    });
+    return getAvailableSlots(date, service.durationMin, bookings);
+  }
+
+  const activeStaffIds = await getActiveStaffIds();
+  const allBookings = await db.appointment.findMany({
+    where: { status: "BOOKED", startsAt: { gte: dayStart, lte: dayEnd } },
+    select: { startsAt: true, endsAt: true, staffId: true },
   });
 
-  return getAvailableSlots(date, service.durationMin, bookings);
+  if (activeStaffIds.length === 0) {
+    return getAvailableSlots(date, service.durationMin, allBookings);
+  }
+
+  const legacyUnassigned = allBookings.filter((b) => b.staffId === null);
+  const perStaffSlots = activeStaffIds.map((id) => {
+    const staffBookings = allBookings
+      .filter((b) => b.staffId === id)
+      .concat(legacyUnassigned);
+    return getAvailableSlots(date, service.durationMin, staffBookings);
+  });
+
+  return perStaffSlots[0].map((slot, i) => ({
+    time: slot.time,
+    available: perStaffSlots.some((staffSlots) => staffSlots[i]?.available),
+  }));
 }
 
 export async function getActiveStaffAction() {
@@ -68,6 +107,18 @@ async function isSlotFree(start: Date, end: Date, staffId?: string | null) {
     },
   });
   return !overlap;
+}
+
+/** Returns the id of the first active staff member free for this slot, or null if none are. */
+async function findFreeStaffId(
+  start: Date,
+  end: Date,
+  staffIds: string[]
+): Promise<string | null> {
+  const results = await Promise.all(
+    staffIds.map(async (id) => ({ id, free: await isSlotFree(start, end, id) }))
+  );
+  return results.find((r) => r.free)?.id ?? null;
 }
 
 export type BookingActionState =
@@ -123,9 +174,35 @@ export async function bookAppointment(
     return { start, end };
   });
 
-  if (!(await isSlotFree(occurrences[0].start, occurrences[0].end, staffId))) {
+  // No explicit staff chosen: auto-assign each occurrence to whichever active
+  // staff member is actually free, instead of leaving it unassigned (which
+  // would otherwise look like it blocks every hairdresser's calendar at once).
+  const activeStaffIds = staffId ? [] : await getActiveStaffIds();
+
+  async function resolveStaffForOccurrence(
+    start: Date,
+    end: Date
+  ): Promise<{ staffId: string | null } | { full: true }> {
+    if (staffId) {
+      return (await isSlotFree(start, end, staffId)) ? { staffId } : { full: true };
+    }
+    if (activeStaffIds.length === 0) {
+      return (await isSlotFree(start, end, null)) ? { staffId: null } : { full: true };
+    }
+    const freeStaffId = await findFreeStaffId(start, end, activeStaffIds);
+    return freeStaffId ? { staffId: freeStaffId } : { full: true };
+  }
+
+  const firstResolved = await resolveStaffForOccurrence(
+    occurrences[0].start,
+    occurrences[0].end
+  );
+  if ("full" in firstResolved) {
     return {
-      error: "Dieser Termin ist leider gerade vergeben. Bitte wähle eine andere Uhrzeit.",
+      error:
+        activeStaffIds.length > 0
+          ? "Zu dieser Zeit ist gerade niemand frei. Bitte wähle eine andere Uhrzeit."
+          : "Dieser Termin ist leider gerade vergeben. Bitte wähle eine andere Uhrzeit.",
     };
   }
 
@@ -135,9 +212,12 @@ export async function bookAppointment(
 
   for (const occurrence of occurrences) {
     const withinHours = isWithinOpeningHours(occurrence.start, service.durationMin);
-    const free =
-      withinHours && (await isSlotFree(occurrence.start, occurrence.end, staffId));
-    if (!free) {
+    if (!withinHours) {
+      skipped += 1;
+      continue;
+    }
+    const resolved = await resolveStaffForOccurrence(occurrence.start, occurrence.end);
+    if ("full" in resolved) {
       skipped += 1;
       continue;
     }
@@ -150,7 +230,7 @@ export async function bookAppointment(
         seriesId,
         customerId: session.userId,
         serviceId: service.id,
-        staffId: staffId ?? null,
+        staffId: resolved.staffId,
       },
     });
     created += 1;
