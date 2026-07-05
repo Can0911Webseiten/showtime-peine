@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CreateStaffForm } from "@/components/owner/create-staff-form";
 import { StaffToggleButton } from "@/components/owner/staff-toggle-button";
+import { ResetPasswordButton } from "@/components/owner/reset-password-button";
 
 export default async function StaffManagementPage() {
   await requireOwner();
@@ -62,7 +63,10 @@ export default async function StaffManagementPage() {
                       Benutzername: {member.username}
                     </p>
                   </div>
-                  <StaffToggleButton staffId={member.id} active={member.active} />
+                  <div className="flex gap-2">
+                    <ResetPasswordButton userId={member.id} name={member.name} />
+                    <StaffToggleButton staffId={member.id} active={member.active} />
+                  </div>
                 </CardContent>
               </Card>
             ))}

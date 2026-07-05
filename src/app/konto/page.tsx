@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { formatDateLong, formatDuration, formatPrice } from "@/lib/format";
 import { CancelAppointmentButton } from "@/components/konto/cancel-appointment-button";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { ChangePasswordForm } from "@/components/auth/change-password-form";
 
 export default async function KontoPage({
   searchParams,
@@ -148,6 +149,17 @@ export default async function KontoPage({
           </div>
         </section>
       )}
+
+      <section className="mt-10">
+        <h2 className="font-heading text-sm tracking-wide text-muted-foreground">
+          PASSWORT
+        </h2>
+        <Card className="mt-4">
+          <CardContent className="p-5">
+            <ChangePasswordForm />
+          </CardContent>
+        </Card>
+      </section>
     </main>
   );
 }

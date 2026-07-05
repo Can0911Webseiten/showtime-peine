@@ -9,11 +9,19 @@ import { BookingSchema } from "@/lib/validations";
 
 /**
  * dateStr must be "YYYY-MM-DD" and is interpreted in the server's local timezone.
- * When staffId is given, availability is checked only against that staff
- * member's own bookings (independent chairs). Without a staffId, it falls
- * back to a shop-wide single-pool check (conservative, avoids overbooking
- * when the customer has no preference).
+ *
+ * Booking without a staff preference is treated as "any chair" and checked
+ * against every booking that day (shop-wide single pool), since we don't run
+ * an assignment algorithm. A booking for a SPECIFIC staff member is checked
+ * against that staff member's own bookings *plus* any unassigned ("keine
+ * Präferenz") bookings, because an unassigned booking might end up being done
+ * by that very person — without this, a specific-staff booking could
+ * silently double-book against a walk-in that has no staffId yet.
  */
+function staffAvailabilityFilter(staffId: string | undefined) {
+  return staffId ? { OR: [{ staffId }, { staffId: null }] } : {};
+}
+
 export async function getAvailableSlotsAction(
   serviceId: string,
   dateStr: string,
@@ -34,7 +42,7 @@ export async function getAvailableSlotsAction(
     where: {
       status: "BOOKED",
       startsAt: { gte: dayStart, lte: dayEnd },
-      ...(staffId ? { staffId } : {}),
+      ...staffAvailabilityFilter(staffId),
     },
     select: { startsAt: true, endsAt: true },
   });
@@ -56,7 +64,7 @@ async function isSlotFree(start: Date, end: Date, staffId?: string | null) {
       status: "BOOKED",
       startsAt: { lt: end },
       endsAt: { gt: start },
-      ...(staffId ? { staffId } : {}),
+      ...staffAvailabilityFilter(staffId ?? undefined),
     },
   });
   return !overlap;

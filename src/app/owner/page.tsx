@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarBlank, Phone, Scissors, Sparkle, UsersThree, XCircle } from "@phosphor-icons/react/dist/ssr";
+import { CalendarBlank, Phone, Scissors, Sparkle, UsersThree, UserCircle, XCircle } from "@phosphor-icons/react/dist/ssr";
 import { requireOwner } from "@/lib/dal";
 import { db } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { AutoRefresh } from "@/components/owner/auto-refresh";
 import { OwnerCancelButton } from "@/components/owner/owner-cancel-button";
+import { ChangePasswordForm } from "@/components/auth/change-password-form";
 import { formatDateLong, formatPrice } from "@/lib/format";
 
 const NEW_THRESHOLD_MS = 24 * 60 * 60 * 1000;
@@ -63,6 +64,15 @@ export default async function OwnerDashboardPage() {
           >
             <UsersThree className="size-4" aria-hidden />
             Mitarbeiter
+          </Button>
+          <Button
+            nativeButton={false}
+            render={<Link href="/owner/kunden" />}
+            variant="secondary"
+            size="sm"
+          >
+            <UserCircle className="size-4" aria-hidden />
+            Kunden
           </Button>
           <LogoutButton />
         </div>
@@ -163,6 +173,17 @@ export default async function OwnerDashboardPage() {
           </div>
         </section>
       )}
+
+      <section className="mt-10">
+        <h2 className="font-heading text-sm tracking-wide text-muted-foreground">
+          PASSWORT
+        </h2>
+        <Card className="mt-4">
+          <CardContent className="p-5">
+            <ChangePasswordForm />
+          </CardContent>
+        </Card>
+      </section>
     </main>
   );
 }

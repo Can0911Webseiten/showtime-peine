@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { AutoRefresh } from "@/components/owner/auto-refresh";
 import { StaffCancelButton } from "@/components/owner/staff-cancel-button";
+import { ChangePasswordForm } from "@/components/auth/change-password-form";
 import { formatDateLong, formatPrice } from "@/lib/format";
 
 export default async function StaffDashboardPage() {
@@ -110,6 +111,17 @@ export default async function StaffDashboardPage() {
             ))}
           </div>
         )}
+      </section>
+
+      <section className="mt-10">
+        <h2 className="font-heading text-sm tracking-wide text-muted-foreground">
+          PASSWORT
+        </h2>
+        <Card className="mt-4">
+          <CardContent className="p-5">
+            <ChangePasswordForm />
+          </CardContent>
+        </Card>
       </section>
     </main>
   );
